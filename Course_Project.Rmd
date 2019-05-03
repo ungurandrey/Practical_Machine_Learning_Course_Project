@@ -1,0 +1,161 @@
+---
+title: "Practical Machine Learning Course Project Report"
+author: "by Andrii Unghur"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction ## 
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.  
+
+In this project, we will use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which they did the exercise.  
+
+## Loading the data and libraries ## 
+
+```{r, cache = T}
+library(ggplot2)
+library(lattice)
+library(caret)
+library(randomForest)
+library(rattle)
+library(rpart)
+library(gridExtra)
+library(tidyr)
+```
+
+# Download files from the data source, and read the two csv files into two data frames. #
+
+```{r, cache = T}
+TrainDataUrl <-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+TestDataUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+TrainFile <- "./data/pml-training.csv"
+TestFile  <- "./data/pml-testing.csv"
+
+if (!file.exists("./data")) {
+  dir.create("./data")
+}
+if (!file.exists(TrainFile)) {
+  download.file(TrainDataUrl, destfile=TrainFile, method="curl")
+}
+if (!file.exists(TestFile)) {
+  download.file(TestDataUrl, destfile=TestFile, method="curl")
+}
+```
+
+# Make sure we will get NA values for '', 'NA', '#Div/0!' #
+
+```{r, cache = T}
+TrainData <- read.csv("./data/pml-training.csv",header=TRUE, as.is = TRUE, stringsAsFactors = FALSE, sep=',', na.strings=c("NA","#DIV/0!",""))
+ValidationData <- read.csv("./data/pml-testing.csv",header=TRUE, as.is = TRUE, stringsAsFactors = FALSE, sep=',', na.strings=c("NA","#DIV/0!",""))
+```
+
+# After investigating of all the variables in the sets, we see that there are a lot of NA values. We will remove the variables that contains missing values and then will remove the first seven variables as they have little impact on the outcome classe #
+
+```{r, cache = T}
+TrainDataClean <- TrainData[,colSums(is.na(TrainData))==0]
+TrainDataClean <- TrainDataClean[,-c(1:7)]
+dim(TrainDataClean)
+ValidationDataClean <- ValidationData[,colSums(is.na(ValidationData))==0]
+ValidationDataClean <- ValidationDataClean[,-c(1:7)]
+dim(ValidationDataClean)
+```
+
+# Preparing the datasets for prediction. Splitting the training data into 70% as train data and 30% as test data. #
+
+```{r, cache = T}
+set.seed(136) 
+inTrain <- createDataPartition(TrainDataClean$classe, p = 0.7, list = FALSE)
+TrainDataClean <- TrainDataClean[inTrain, ]
+TestData <- TrainDataClean[-inTrain, ]
+dim(TrainDataClean)
+dim(TestData)
+```
+
+## Prediction with Decision Trees ##
+
+```{r, cache = T}
+decisonTree <- rpart(classe ~ ., data=TrainDataClean, method="class")
+fancyRpartPlot(decisonTree)
+```
+
+# Accuracy #
+
+```{r, cache = T}
+predictionsDecTree <- predict(decisonTree, TestData, type = "class")
+cmtree <- confusionMatrix(table(predictionsDecTree, TestData$classe))
+cmtree
+cmtree$table
+cmtree$overall[1]
+```
+
+## Train with random forests Random Search ##
+
+```{r, cache = T}
+trControl <- trainControl(method = "cv", number = 5)
+model_RF <- train(classe~., data=TrainDataClean, method="rf", trControl=trControl, verbose=FALSE)
+```
+
+# Printing result #
+
+```{r, cache = T}
+print(model_RF)
+```
+
+```{r, cache = T}
+plot(model_RF,main="Accuracy of Random forest model by number of predictors")
+trainpred <- predict(model_RF,newdata=TestData)
+
+confMatRF <- confusionMatrix(table(trainpred,TestData$classe))
+```
+
+# Displaying confusion matrix and model accuracy #
+
+```{r, cache = T}
+confMatRF$table
+confMatRF$overall[1]
+```
+
+```{r, cache = T}
+names(model_RF$finalModel)
+model_RF$finalModel$classes
+```
+
+```{r, cache = T}
+plot(model_RF$finalModel,main="Model error of Random forest model by number of trees")
+```
+
+## Train with gradient boosting method ##
+
+```{r, cache = T}
+model_GBM <- train(classe~., data=TrainDataClean, method="gbm", trControl=trControl, verbose=FALSE)
+print(model_GBM)
+```
+
+```{r, cache = T}
+plot(model_GBM)
+```
+
+```{r, cache = T}
+trainpred <- predict(model_GBM,newdata=TestData)
+
+confMatGBM <- confusionMatrix(table(TestData$classe,trainpred))
+confMatGBM$table
+```
+
+```{r, cache = T}
+confMatGBM$overall[1]
+```
+
+## Conclusion ##
+
+This shows that the random forest model is the best one. We will use it to predict the values of classe for the validation data set.
+
+```{r, cache = T}
+FinalTestPred <- predict(model_RF,newdata=ValidationDataClean)
+FinalTestPred
+```
