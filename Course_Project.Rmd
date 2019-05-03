@@ -15,7 +15,22 @@ Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible t
 
 In this project, we will use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which they did the exercise.  
 
-## Loading the data and libraries ## 
+## How the Model Was Built ##
+
+Using the “classe” variable and other predictors - the model will be built using decision tree, random forest and gradient boosting algorithm.
+
+## Cross-Validation ##
+
+Cross-validation will be performed on the training set and the testing set to aid in estimating the prediction error. This resampling method will take the model and divide it into two sub-sample sets. The sub-training set will be used to to build the model, and the sub-testing set will be used to validate the model. The more accurate subset will be tested against the original set.
+
+## Expected Out of Sample Error ##
+
+Out of Sample Error is “the error rate you get on a new data set”. The expectation is that the out-of-sample error will correlate with the accuracy of the cross-validation data. Based on results of cross-validation, the out of sample error will be the proportion of misclassified cases over the total cases in the test data.
+
+## Explanation of Prediction Model ##
+The training set for this model is large with over 1,900 records. Due to the size of the sample, it’s best to break it down into two sub-samples to allow for cross-validation. The classe variable is used to predict how the individuals performed the excercise. Other varibales like pitch_forearm, roll_belt, accel_dumbbell, etc. aid in the predictions. Decision Tree - explicitly visualizes decision making; splitting data into smaller groups, showing how a specific decision or variable leads to a particular outcome.conclusion,  Random Forest splits data on random subsets, considering only a small subset of the data model instead of the whole data model, Gradient Boosting is a boosting method which aims to optimise an arbitrary (differentiable) cost function (for example, squared error). All methods are good for classifcation and regression
+
+# Loading the data and libraries # 
 
 ```{r, cache = T}
 library(ggplot2)
@@ -28,7 +43,7 @@ library(gridExtra)
 library(tidyr)
 ```
 
-# Download files from the data source, and read the two csv files into two data frames. #
+Download files from the data source, and read the two csv files into two data frames.
 
 ```{r, cache = T}
 TrainDataUrl <-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
@@ -47,14 +62,14 @@ if (!file.exists(TestFile)) {
 }
 ```
 
-# Make sure we will get NA values for '', 'NA', '#Div/0!' #
+Make sure we will get NA values for '', 'NA', '#Div/0!'
 
 ```{r, cache = T}
 TrainData <- read.csv("./data/pml-training.csv",header=TRUE, as.is = TRUE, stringsAsFactors = FALSE, sep=',', na.strings=c("NA","#DIV/0!",""))
 ValidationData <- read.csv("./data/pml-testing.csv",header=TRUE, as.is = TRUE, stringsAsFactors = FALSE, sep=',', na.strings=c("NA","#DIV/0!",""))
 ```
 
-# After investigating of all the variables in the sets, we see that there are a lot of NA values. We will remove the variables that contains missing values and then will remove the first seven variables as they have little impact on the outcome classe #
+After investigating of all the variables in the sets, we see that there are a lot of NA values. We will remove the variables that contains missing values and then will remove the first seven variables as they have little impact on the outcome classe
 
 ```{r, cache = T}
 TrainDataClean <- TrainData[,colSums(is.na(TrainData))==0]
@@ -65,7 +80,7 @@ ValidationDataClean <- ValidationDataClean[,-c(1:7)]
 dim(ValidationDataClean)
 ```
 
-# Preparing the datasets for prediction. Splitting the training data into 70% as train data and 30% as test data. #
+Preparing the datasets for prediction. Splitting the training data into 70% as train data and 30% as test data.
 
 ```{r, cache = T}
 set.seed(136) 
@@ -83,7 +98,7 @@ decisonTree <- rpart(classe ~ ., data=TrainDataClean, method="class")
 fancyRpartPlot(decisonTree)
 ```
 
-# Accuracy #
+Accuracy
 
 ```{r, cache = T}
 predictionsDecTree <- predict(decisonTree, TestData, type = "class")
@@ -100,7 +115,7 @@ trControl <- trainControl(method = "cv", number = 5)
 model_RF <- train(classe~., data=TrainDataClean, method="rf", trControl=trControl, verbose=FALSE)
 ```
 
-# Printing result #
+Printing result
 
 ```{r, cache = T}
 print(model_RF)
@@ -113,7 +128,7 @@ trainpred <- predict(model_RF,newdata=TestData)
 confMatRF <- confusionMatrix(table(trainpred,TestData$classe))
 ```
 
-# Displaying confusion matrix and model accuracy #
+Displaying confusion matrix and model accuracy
 
 ```{r, cache = T}
 confMatRF$table
